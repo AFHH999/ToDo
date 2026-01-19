@@ -1,8 +1,6 @@
 package services
 
 import (
-	"errors"
-
 	"github.com/AFHH999/ToDo/internal/models"
 	"gorm.io/gorm"
 )
