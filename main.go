@@ -26,59 +26,47 @@ func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-func create_task() Task {
+func getInput(prompt string, reader *bufio.Reader) string { // This is how to get a personalized prompt in Go
+	fmt.Print(prompt)
+	input, _ := reader.ReadString('\n')
+	return strings.TrimSpace(input)
+}
 
-	//Task
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Enter the task: ")
+func createTask(reader *bufio.Reader) Task {
+	fmt.Println("\n--- New Task ---")
 
+	// Loop 1: Name (Required)
+	var name string
 	for {
-		name, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Sorry could not get that input")
-			continue
-
+		name = getInput("Enter the task name: ", reader)
+		if name != "" {
+			break
 		}
-		Name := strings.TrimSpace(name)
+		fmt.Println("Task name cannot be empty.")
+	}
 
-		//Responsible
-		fmt.Println("Enter the resposible for the task: ")
-		responsible, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Sorry couldn't get the input: ")
-			continue
+	// Responsible (Optional)
+	responsible := getInput("Enter the responsible person: ", reader)
 
+	// Loop 2: State (Strict Validation)
+	var state string
+	for {
+		state = getInput("Enter state (To Do, In Progress, Done): ", reader)
+		// strictly check the allowed values
+		if state == "To Do" || state == "In Progress" || state == "Done" {
+			break
 		}
-		Responsible := strings.TrimSpace(responsible)
+		fmt.Println("Invalid state. Please enter exactly: To Do, In Progress, or Done")
+	}
 
-		//State
-		fmt.Println("Enter the state of the task: ")
-		state, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Sorry couldn't get the input of the state: ", err)
-			continue
+	// Priority (Optional)
+	priority := getInput("Enter priority: ", reader)
 
-		}
-		State := strings.TrimSpace(state)
-
-		//Priority
-		fmt.Println("Enter the priority of the task: ")
-		priority, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Sorry couldn't get the input: ", err)
-			continue
-
-		}
-		Priority := strings.TrimSpace(priority)
-
-		newTask := Task{
-			Name:        Name,
-			Responsible: Responsible,
-			State:       State,
-			Priority:    Priority,
-		}
-
-		return newTask
+	return Task{
+		Name:        name,
+		Responsible: responsible,
+		State:       state,
+		Priority:    priority,
 	}
 }
 
@@ -98,91 +86,64 @@ func listTasks(db *gorm.DB) {
 
 }
 
-func editTask(db *gorm.DB) {
+func editTask(db *gorm.DB, reader *bufio.Reader) {
 	var task Task
 
-	//Getting input from user
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Insert the id of the task to modify: ")
-	id_Str, err := reader.ReadString('\n')
+	idStr := getInput("Insert the id of the task to modify: ", reader)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println("Couldn't read that string: ", err)
+		fmt.Println("Invalid ID")
 		return
 	}
-	id_Str = strings.TrimSpace(id_Str)
-	ID, err := strconv.Atoi(id_Str)
-	if err != nil {
-		fmt.Println("Invalid ID", err)
-		return
-	}
-	if err := db.First(&task, ID).Error; err != nil {
+
+	if err := db.First(&task, id).Error; err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
 	fmt.Printf("Editing task: %s\n", task.Name)
 
-	//Changing name
-	fmt.Println("Enter the new task, or press enter to keep it!")
-	name, _ := reader.ReadString('\n')
-	name = strings.TrimSpace(name)
+	// Update logic using helper
+	name := getInput("Enter new name (press enter to keep current): ", reader)
 	if name != "" {
 		task.Name = name
 	}
 
-	// Changing Responsible
-	fmt.Println("Enter the name of the responsible for the task or leave it to keep it: ")
-	responsible, _ := reader.ReadString('\n')
-	responsible = strings.TrimSpace(responsible)
+	responsible := getInput("Enter new responsible (press enter to keep current): ", reader)
 	if responsible != "" {
 		task.Responsible = responsible
 	}
 
-	//Changing state
-	fmt.Println("Enter the state of the task, or leave it to keep it: ")
-	state, _ := reader.ReadString('\n')
-	state = strings.TrimSpace(state)
+	state := getInput("Enter new state (press enter to keep current): ", reader)
 	if state != "" {
 		task.State = state
 	}
 
-	//Changing priority
-	fmt.Println("Enter the priority, or leave it to keep it: ")
-	priority, _ := reader.ReadString('\n')
-	priority = strings.TrimSpace(priority)
+	priority := getInput("Enter new priority (press enter to keep current): ", reader)
 	if priority != "" {
 		task.Priority = priority
 	}
 
-	//Save the new task
 	db.Save(&task)
-	fmt.Println("Task save it successfully!")
+	fmt.Println("Task saved successfully!")
 }
 
-func deleteTask(db *gorm.DB) {
-
+func deleteTask(db *gorm.DB, reader *bufio.Reader) {
 	var task Task
 
-	// Getting the ID from standard input
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Insert the ID of the task to delete: ")
-	id_Str, err := reader.ReadString('\n')
+	idStr := getInput("Insert the ID of the task to delete: ", reader)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println("Some error just happened: ", err)
+		fmt.Println("Invalid ID")
 		return
 	}
-	id_Str = strings.TrimSpace(id_Str)
-	ID, err := strconv.Atoi(id_Str)
-	if err != nil {
-		fmt.Println("Sorry couldn't parse that string: ", err)
-		return
-	}
-	if err := db.First(&task, ID).Error; err != nil {
+
+	if err := db.First(&task, id).Error; err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
 
 	db.Delete(&task)
-	fmt.Println("Task delete successfully!")
+	fmt.Println("Task deleted successfully!")
 }
 
 func main() {
@@ -197,44 +158,41 @@ func main() {
 	}
 
 	for {
-		fmt.Println("Please what do you want to do?")
+		fmt.Println("\nPlease what do you want to do?")
 		fmt.Println("1- To add a new task")
 		fmt.Println("2- To list all the tasks")
 		fmt.Println("3- To edit the task")
 		fmt.Println("4- To delete the task")
 		fmt.Println("5- To exit")
 
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Couldn't get the input")
-		}
-
-		input = strings.TrimSpace(input)
-
-		Input := strings.TrimSpace(input)
-		menu, err := strconv.ParseInt(Input, 10, 32)
+		input := getInput("", reader)
+		menu, err := strconv.Atoi(input)
 
 		if err != nil {
-			fmt.Println("Sorry wrong input: ", err)
+			fmt.Println("Please enter a number.")
+			continue
 		}
 
-		if menu == 1 {
-			task := create_task()
+		switch menu {
+		case 1:
+			task := createTask(reader)
 			result := db.Create(&task)
 			if result.Error != nil {
 				fmt.Println("Failed to create task:", result.Error)
 			} else {
 				fmt.Printf("Task created successfully! ID: %d\n", task.ID)
 			}
-		} else if menu == 2 {
+		case 2:
 			listTasks(db)
-		} else if menu == 3 {
-			editTask(db)
-		} else if menu == 4 {
-			deleteTask(db)
-		} else if menu == 5 {
+		case 3:
+			editTask(db, reader)
+		case 4:
+			deleteTask(db, reader)
+		case 5:
 			fmt.Println("Have a great day!")
-			break
+			return
+		default:
+			fmt.Println("Invalid option.")
 		}
 	}
 }
