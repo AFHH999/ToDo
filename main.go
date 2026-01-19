@@ -3,15 +3,28 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/AFHH999/ToDo/internal/db"
-	"github.com/AFHH999/ToDo/internal/models"
-	"github.com/AFHH999/ToDo/internal/services"
-	"gorm.io/gorm"
+	"time"
 )
+
+type Task struct {
+	ID          uint `gorm:"primarykey"`
+	Name        string
+	Responsible string
+	State       string
+	Priority    string
+	CreatedDate string
+}
+
+// BeforeCreate is a GORM hook that runs before inserting a record
+func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
+	t.CreatedDate = time.Now().Format("2006-01-02 15:04")
+	return
+}
 
 func getInput(prompt string, reader *bufio.Reader) string {
 	fmt.Print(prompt)
@@ -19,7 +32,7 @@ func getInput(prompt string, reader *bufio.Reader) string {
 	return strings.TrimSpace(input)
 }
 
-func handleCreate(reader *bufio.Reader, database *gorm.DB) {
+func createTask(reader *bufio.Reader, db *gorm.DB) {
 	fmt.Println("\n--- New Task ---")
 
 	var name string
@@ -44,28 +57,28 @@ func handleCreate(reader *bufio.Reader, database *gorm.DB) {
 
 	priority := getInput("Enter priority: ", reader)
 
-	newTask := models.Task{
+	newTask := Task{
 		Name:        name,
 		Responsible: responsible,
 		State:       state,
 		Priority:    priority,
 	}
 
-	id, err := services.CreateTask(database, newTask)
-	if err != nil {
-		fmt.Println("Failed to create task:", err)
+	result := db.Create(&newTask)
+	if result.Error != nil {
+		fmt.Println("Failed to create task:", result.Error)
 	} else {
-		fmt.Printf("Task created successfully! ID: %d\n", id)
+		fmt.Printf("Task created successfully! ID: %d\n", newTask.ID)
 	}
 }
 
-func handleList(database *gorm.DB) {
-	tasks, err := services.ListTasks(database)
-	if err != nil {
-		fmt.Println("Error fetching tasks:", err)
+func listTasks(db *gorm.DB) {
+	var tasks []Task
+	result := db.Find(&tasks)
+	if result.Error != nil {
+		fmt.Println("Error fetching the tasks: ", result.Error)
 		return
 	}
-
 	fmt.Println("\n---- Current tasks ----")
 	for _, task := range tasks {
 		fmt.Printf("[%d] %s | Responsible: %s | State: %s | Priority: %s | Created: %s\n",
@@ -74,7 +87,9 @@ func handleList(database *gorm.DB) {
 	fmt.Println("------------------------")
 }
 
-func handleEdit(reader *bufio.Reader, database *gorm.DB) {
+func editTask(db *gorm.DB, reader *bufio.Reader) {
+	var task Task
+
 	idStr := getInput("Insert the id of the task to modify: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -82,8 +97,7 @@ func handleEdit(reader *bufio.Reader, database *gorm.DB) {
 		return
 	}
 
-	task, err := services.GetTaskByID(database, id)
-	if err != nil {
+	if err := db.First(&task, id).Error; err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
@@ -109,14 +123,13 @@ func handleEdit(reader *bufio.Reader, database *gorm.DB) {
 		task.Priority = priority
 	}
 
-	if err := services.UpdateTask(database, task); err != nil {
-		fmt.Println("Error updating task:", err)
-	} else {
-		fmt.Println("Task saved successfully!")
-	}
+	db.Save(&task)
+	fmt.Println("Task saved successfully!")
 }
 
-func handleDelete(reader *bufio.Reader, database *gorm.DB) {
+func deleteTask(db *gorm.DB, reader *bufio.Reader) {
+	var task Task
+
 	idStr := getInput("Insert the ID of the task to delete: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -124,19 +137,25 @@ func handleDelete(reader *bufio.Reader, database *gorm.DB) {
 		return
 	}
 
-	if err := services.DeleteTask(database, id); err != nil {
-		fmt.Println("Error deleting task:", err)
-	} else {
-		fmt.Println("Task deleted successfully!")
+	if err := db.First(&task, id).Error; err != nil {
+		fmt.Println("Task not found!")
+		return
 	}
+
+	db.Delete(&task)
+	fmt.Println("Task deleted successfully!")
 }
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	database, err := db.InitDB("test.db")
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		fmt.Println("Sorry couldn't connect to the database: ", err)
+		return
+	}
+	if err := db.AutoMigrate(&Task{}); err != nil {
+		fmt.Println("Migration failed: ", err)
 		return
 	}
 
@@ -158,13 +177,13 @@ func main() {
 
 		switch menu {
 		case 1:
-			handleCreate(reader, database)
+			createTask(reader, db)
 		case 2:
-			handleList(database)
+			listTasks(db)
 		case 3:
-			handleEdit(reader, database)
+			editTask(db, reader)
 		case 4:
-			handleDelete(reader, database)
+			deleteTask(db, reader)
 		case 5:
 			fmt.Println("Have a great day!")
 			return
