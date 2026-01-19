@@ -3,39 +3,25 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/AFHH999/ToDo/internal/db"
+	"github.com/AFHH999/ToDo/internal/models"
+	"github.com/AFHH999/ToDo/internal/services"
+	"gorm.io/gorm"
 )
 
-type Task struct {
-	ID          uint `gorm:"primarykey"`
-	Name        string
-	Responsible string
-	State       string
-	Priority    string
-	CreatedDate string
-}
-
-// BeforeCreate is a GORM hook that runs before inserting a record
-func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
-	t.CreatedDate = time.Now().Format("2006-01-02 15:04")
-	return
-}
-
-func getInput(prompt string, reader *bufio.Reader) string { // This is how to get a personalized prompt in Go
+func getInput(prompt string, reader *bufio.Reader) string {
 	fmt.Print(prompt)
 	input, _ := reader.ReadString('\n')
 	return strings.TrimSpace(input)
 }
 
-func createTask(reader *bufio.Reader) Task {
+func handleCreate(reader *bufio.Reader, database *gorm.DB) {
 	fmt.Println("\n--- New Task ---")
 
-	// Loop 1: Name (Required)
 	var name string
 	for {
 		name = getInput("Enter the task name: ", reader)
@@ -45,50 +31,50 @@ func createTask(reader *bufio.Reader) Task {
 		fmt.Println("Task name cannot be empty.")
 	}
 
-	// Responsible (Optional)
 	responsible := getInput("Enter the responsible person: ", reader)
 
-	// Loop 2: State (Strict Validation)
 	var state string
 	for {
 		state = getInput("Enter state (To Do, In Progress, Done): ", reader)
-		// strictly check the allowed values
 		if state == "To Do" || state == "In Progress" || state == "Done" {
 			break
 		}
 		fmt.Println("Invalid state. Please enter exactly: To Do, In Progress, or Done")
 	}
 
-	// Priority (Optional)
 	priority := getInput("Enter priority: ", reader)
 
-	return Task{
+	newTask := models.Task{
 		Name:        name,
 		Responsible: responsible,
 		State:       state,
 		Priority:    priority,
 	}
+
+	id, err := services.CreateTask(database, newTask)
+	if err != nil {
+		fmt.Println("Failed to create task:", err)
+	} else {
+		fmt.Printf("Task created successfully! ID: %d\n", id)
+	}
 }
 
-func listTasks(db *gorm.DB) {
-	var tasks []Task
-	result := db.Find(&tasks)
-	if result.Error != nil {
-		fmt.Println("Error fetching the tasks: ", result.Error)
+func handleList(database *gorm.DB) {
+	tasks, err := services.ListTasks(database)
+	if err != nil {
+		fmt.Println("Error fetching tasks:", err)
 		return
 	}
+
 	fmt.Println("\n---- Current tasks ----")
 	for _, task := range tasks {
 		fmt.Printf("[%d] %s | Responsible: %s | State: %s | Priority: %s | Created: %s\n",
 			task.ID, task.Name, task.Responsible, task.State, task.Priority, task.CreatedDate)
 	}
 	fmt.Println("------------------------")
-
 }
 
-func editTask(db *gorm.DB, reader *bufio.Reader) {
-	var task Task
-
+func handleEdit(reader *bufio.Reader, database *gorm.DB) {
 	idStr := getInput("Insert the id of the task to modify: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -96,13 +82,13 @@ func editTask(db *gorm.DB, reader *bufio.Reader) {
 		return
 	}
 
-	if err := db.First(&task, id).Error; err != nil {
+	task, err := services.GetTaskByID(database, id)
+	if err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
 	fmt.Printf("Editing task: %s\n", task.Name)
 
-	// Update logic using helper
 	name := getInput("Enter new name (press enter to keep current): ", reader)
 	if name != "" {
 		task.Name = name
@@ -123,13 +109,14 @@ func editTask(db *gorm.DB, reader *bufio.Reader) {
 		task.Priority = priority
 	}
 
-	db.Save(&task)
-	fmt.Println("Task saved successfully!")
+	if err := services.UpdateTask(database, task); err != nil {
+		fmt.Println("Error updating task:", err)
+	} else {
+		fmt.Println("Task saved successfully!")
+	}
 }
 
-func deleteTask(db *gorm.DB, reader *bufio.Reader) {
-	var task Task
-
+func handleDelete(reader *bufio.Reader, database *gorm.DB) {
 	idStr := getInput("Insert the ID of the task to delete: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -137,24 +124,20 @@ func deleteTask(db *gorm.DB, reader *bufio.Reader) {
 		return
 	}
 
-	if err := db.First(&task, id).Error; err != nil {
-		fmt.Println("Task not found!")
-		return
+	if err := services.DeleteTask(database, id); err != nil {
+		fmt.Println("Error deleting task:", err)
+	} else {
+		fmt.Println("Task deleted successfully!")
 	}
-
-	db.Delete(&task)
-	fmt.Println("Task deleted successfully!")
 }
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	database, err := db.InitDB("test.db")
 	if err != nil {
 		fmt.Println("Sorry couldn't connect to the database: ", err)
-	}
-	if err := db.AutoMigrate(&Task{}); err != nil {
-		fmt.Println("Migration failed: ", err)
+		return
 	}
 
 	for {
@@ -175,19 +158,13 @@ func main() {
 
 		switch menu {
 		case 1:
-			task := createTask(reader)
-			result := db.Create(&task)
-			if result.Error != nil {
-				fmt.Println("Failed to create task:", result.Error)
-			} else {
-				fmt.Printf("Task created successfully! ID: %d\n", task.ID)
-			}
+			handleCreate(reader, database)
 		case 2:
-			listTasks(db)
+			handleList(database)
 		case 3:
-			editTask(db, reader)
+			handleEdit(reader, database)
 		case 4:
-			deleteTask(db, reader)
+			handleDelete(reader, database)
 		case 5:
 			fmt.Println("Have a great day!")
 			return
