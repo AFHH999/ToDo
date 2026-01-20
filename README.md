@@ -38,7 +38,7 @@ Before running this project, ensure you have the following installed:
 To start the application, run:
 
 ```bash
-go run main.go
+go run cmd/todo/main.go
 ```
 
 Follow the on-screen menu to manage your tasks:

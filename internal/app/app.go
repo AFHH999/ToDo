@@ -98,15 +98,15 @@ func EditTask(db *gorm.DB, reader *bufio.Reader) {
 	}
 
 	for {
-		state := GetInput("Enter state (To Do, In progress, Done) or keep it: ", reader)
+		state := GetInput("Enter state (To Do, In Progress, Done) or keep it: ", reader)
 		if state == "" {
 			break
 		}
-		if state == "To Do" || state == "In progress" || state == "Done" {
+		if state == "To Do" || state == "In Progress" || state == "Done" {
 			task.State = state
 			break
 		}
-		fmt.Println("Sorry most be To Do, In progress or Done!")
+		fmt.Println("Sorry most be To Do, In Progress or Done!")
 	}
 
 	priority := GetInput("Enter new priority (press enter to keep current): ", reader)
