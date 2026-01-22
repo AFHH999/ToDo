@@ -12,15 +12,12 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	// DevOps: Read DB path from environment variable, default to "test.db"
-	dbPath := os.Getenv("TODO_DB_PATH")
+	dbPath := os.Getenv("TODO_DB_PATH") // This works because it ask the OS where is the database
 	if dbPath == "" {
-		dbPath = "test.db"
+		dbPath = "test.db" // If theres is none then it crate it.
 	}
 
-	// Initialize Database via the new internal module
-
-database, err := db.Init(dbPath)
+	database, err := db.Init(dbPath)
 	if err != nil {
 		fmt.Println("Sorry couldn't connect to the database: ", err)
 		return
