@@ -1,14 +1,15 @@
 .PHONY: run build test clean
-
-BINARY_NAME=ToDo
+BIN_DIR=bin
+BINARY_NAME=${BIN_DIR}/todo
 
 # "make run" will make the program run directly:
 run:
 	go run cmd/todo/main.go
 
-# "make build" will compile the code into a binary file named "temp_conv"
+# "make build" will compile the code into a binary file named "ToDo"
 build:
-	go build ${BINARY_NAME} main.go
+	mkdir -p ${BIN_DIR}
+	go build -o ${BINARY_NAME} cmd/todo/main.go
 
 # "make test" will run all your tests with verbal output
 test:
@@ -17,4 +18,4 @@ test:
 # "make clean" will remove the binary file
 clean:
 	go clean
-	rm -f ${BINARY_NAME}
+	rm -fr ${BIN_DIR}
