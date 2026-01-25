@@ -19,3 +19,4 @@ func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
 	t.CreatedDate = time.Now().Format("2006-01-02 15:04")
 	return
 }
+
