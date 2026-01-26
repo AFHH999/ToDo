@@ -23,6 +23,10 @@ func main() {
 		return
 	}
 
+	if app.CatchFlags(database) {
+		return
+	}
+
 	for {
 		fmt.Println("\nPlease what do you want to do?")
 		fmt.Println("1- To add a new task")

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"github.com/AFHH999/ToDo/internal/models"
 	"gorm.io/gorm"
@@ -118,15 +119,20 @@ func EditTask(db *gorm.DB, reader *bufio.Reader) {
 	fmt.Println("Task saved successfully!")
 }
 
+// DeleteTask now properly calls DeleteTaskID internally for the interactive mode
 func DeleteTask(db *gorm.DB, reader *bufio.Reader) {
-	var task models.Task
-
 	idStr := GetInput("Insert the ID of the task to delete: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		fmt.Println("Invalid ID")
 		return
 	}
+	DeleteTaskID(db, id)
+}
+
+func DeleteTaskID(db *gorm.DB, id int) {
+
+	var task models.Task
 
 	if err := db.First(&task, id).Error; err != nil {
 		fmt.Println("Task not found!")
@@ -136,3 +142,45 @@ func DeleteTask(db *gorm.DB, reader *bufio.Reader) {
 	db.Delete(&task)
 	fmt.Println("Task deleted successfully!")
 }
+
+func CatchFlags(db *gorm.DB) bool {
+
+	var list bool
+	var task models.Task
+	var deleteID int
+
+	flag.StringVar(&task.Name, "name", "", "Name of the task")
+	flag.StringVar(&task.Responsible, "responsible", "Unassigned", "Who is in charge of the task")
+	flag.StringVar(&task.State, "state", "To Do", "State of the task (To Do, In Progress, Done)")
+	flag.StringVar(&task.Priority, "priority", "Medium", "Priority (High, Medium, Low)")
+	flag.BoolVar(&list, "list", false, "List all tasks")
+
+	// Changed from BoolVar to IntVar to accept an ID directly
+	flag.IntVar(&deleteID, "delete", 0, "ID of the task to delete it.")
+
+	flag.Parse()
+
+	if list {
+		ListTasks(db)
+		return true
+	}
+
+	// Check if deleteID was set (not 0)
+	if deleteID != 0 {
+		DeleteTaskID(db, deleteID)
+		return true
+	}
+
+	if task.Name != "" {
+		result := db.Create(&task)
+		if result.Error != nil {
+			fmt.Println("Error creating the task: ", result.Error)
+		} else {
+			fmt.Printf("Task '%s' created successfully!\n", task.Name)
+		}
+		return true
+	}
+	return false
+
+}
+
