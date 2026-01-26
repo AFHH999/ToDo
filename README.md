@@ -49,6 +49,43 @@ Follow the on-screen menu to manage your tasks:
 4. **Delete a task**: Removes a task from the database by its ID.
 5. **Exit**: Closes the application.
 
+Also to use the app you can use the flag functionality
+
+### CLI Flags
+
+You can also use command-line flags to perform actions directly without entering the interactive menu.
+
+To see all available flags:
+```bash
+go run cmd/todo/main.go -help
+```
+
+**Available Flags:**
+
+- `-list`: List all tasks.
+- `-name "Task Name"`: Create a new task with the specified name.
+- `-responsible "Name"`: Specify the responsible person (used with `-name`). Default: "Unassigned".
+- `-state "State"`: Specify the task state (To Do, In Progress, Done) (used with `-name`). Default: "To Do".
+- `-priority "Level"`: Specify the priority (High, Medium, Low) (used with `-name`). Default: "Medium".
+- `-delete <ID>`: Delete a task by its ID.
+
+**Examples:**
+
+*List all tasks:*
+```bash
+go run cmd/todo/main.go -list
+```
+
+*Create a new task:*
+```bash
+go run cmd/todo/main.go -name "Fix Bug #42" -responsible "Alice" -priority "High"
+```
+
+*Delete a task:*
+```bash
+go run cmd/todo/main.go -delete 5
+```
+
 ## Database
 
 The application automatically creates a `test.db` file in the root directory upon first run using GORM's `AutoMigrate` feature.
