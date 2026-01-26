@@ -12,9 +12,9 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	dbPath := os.Getenv("TODO_DB_PATH") // This works because it ask the OS where is the database
+	dbPath := os.Getenv("TODO_DB_PATH") // This works because it ask the O.S where is the database
 	if dbPath == "" {
-		dbPath = "test.db" // If theres is none then it crate it.
+		dbPath = "test.db" // If there is none then it crate it.
 	}
 
 	database, err := db.Init(dbPath)

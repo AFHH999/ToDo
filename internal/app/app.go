@@ -183,4 +183,3 @@ func CatchFlags(db *gorm.DB) bool {
 	return false
 
 }
-

@@ -56,6 +56,7 @@ Also to use the app you can use the flag functionality
 You can also use command-line flags to perform actions directly without entering the interactive menu.
 
 To see all available flags:
+
 ```bash
 go run cmd/todo/main.go -help
 ```
@@ -72,19 +73,24 @@ go run cmd/todo/main.go -help
 **Examples:**
 
 *List all tasks:*
+
 ```bash
 go run cmd/todo/main.go -list
 ```
 
 *Create a new task:*
+
 ```bash
 go run cmd/todo/main.go -name "Fix Bug #42" -responsible "Alice" -priority "High"
 ```
 
 *Delete a task:*
+
 ```bash
 go run cmd/todo/main.go -delete 5
 ```
+
+![Example of how to use the flags](assets/Example.png)
 
 ## Database
 
