@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/AFHH999/ToDo/internal/models"
-	"gorm.io/gorm"
+	"github.com/AFHH999/ToDo/internal/repository"
 	"strconv"
 	"strings"
 )
@@ -17,7 +17,7 @@ func GetInput(prompt string, reader *bufio.Reader) string {
 	return strings.TrimSpace(input)
 }
 
-func CreateTask(reader *bufio.Reader, db *gorm.DB) {
+func CreateTask(reader *bufio.Reader, repo repository.TaskRepository) {
 	fmt.Println("\n--- New Task ---")
 
 	var name string
@@ -49,19 +49,20 @@ func CreateTask(reader *bufio.Reader, db *gorm.DB) {
 		Priority:    priority,
 	}
 
-	result := db.Create(&newTask)
-	if result.Error != nil {
-		fmt.Println("Failed to create task:", result.Error)
+	err := repo.Create(&newTask)
+
+	if err != nil {
+		fmt.Println("Failed to create task:", err)
 	} else {
 		fmt.Printf("Task created successfully! ID: %d\n", newTask.ID)
 	}
 }
 
-func ListTasks(db *gorm.DB) {
+func ListTasks(repo repository.TaskRepository) {
 	var tasks []models.Task
-	result := db.Find(&tasks)
-	if result.Error != nil {
-		fmt.Println("Error fetching the tasks: ", result.Error)
+	tasks, err := repo.GetAll()
+	if err != nil {
+		fmt.Println("Error fetching the tasks: ", err)
 		return
 	}
 	fmt.Println("\n---- Current tasks ----")
@@ -72,8 +73,7 @@ func ListTasks(db *gorm.DB) {
 	fmt.Println("------------------------")
 }
 
-func EditTask(db *gorm.DB, reader *bufio.Reader) {
-	var task models.Task
+func EditTask(repo repository.TaskRepository, reader *bufio.Reader) {
 
 	idStr := GetInput("Insert the id of the task to modify: ", reader)
 	id, err := strconv.Atoi(idStr)
@@ -82,10 +82,12 @@ func EditTask(db *gorm.DB, reader *bufio.Reader) {
 		return
 	}
 
-	if err := db.First(&task, id).Error; err != nil {
+	task, err := repo.GetByID(id)
+	if err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
+
 	fmt.Printf("Editing task: %s\n", task.Name)
 
 	name := GetInput("Enter new name (press enter to keep current): ", reader)
@@ -115,35 +117,38 @@ func EditTask(db *gorm.DB, reader *bufio.Reader) {
 		task.Priority = priority
 	}
 
-	db.Save(&task)
+	if err := repo.Update(task); err != nil {
+		fmt.Println("Error saving task:", err)
+	}
 	fmt.Println("Task saved successfully!")
 }
 
 // DeleteTask now properly calls DeleteTaskID internally for the interactive mode
-func DeleteTask(db *gorm.DB, reader *bufio.Reader) {
+func DeleteTask(repo repository.TaskRepository, reader *bufio.Reader) {
 	idStr := GetInput("Insert the ID of the task to delete: ", reader)
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		fmt.Println("Invalid ID")
 		return
 	}
-	DeleteTaskID(db, id)
+	DeleteTaskID(repo, id)
 }
 
-func DeleteTaskID(db *gorm.DB, id int) {
-
-	var task models.Task
-
-	if err := db.First(&task, id).Error; err != nil {
+func DeleteTaskID(repo repository.TaskRepository, id int) {
+	task, err := repo.GetByID(id)
+	if err != nil {
 		fmt.Println("Task not found!")
 		return
 	}
 
-	db.Delete(&task)
-	fmt.Println("Task deleted successfully!")
+	if err := repo.Delete(task); err != nil {
+		fmt.Println("Error deleting task:", err)
+	} else {
+		fmt.Println("Task deleted successfully!")
+	}
 }
 
-func CatchFlags(db *gorm.DB) bool {
+func CatchFlags(repo repository.TaskRepository) bool {
 
 	var list bool
 	var task models.Task
@@ -161,20 +166,20 @@ func CatchFlags(db *gorm.DB) bool {
 	flag.Parse()
 
 	if list {
-		ListTasks(db)
+		ListTasks(repo)
 		return true
 	}
 
 	// Check if deleteID was set (not 0)
 	if deleteID != 0 {
-		DeleteTaskID(db, deleteID)
+		DeleteTaskID(repo, deleteID)
 		return true
 	}
 
 	if task.Name != "" {
-		result := db.Create(&task)
-		if result.Error != nil {
-			fmt.Println("Error creating the task: ", result.Error)
+		err := repo.Create(&task)
+		if err != nil {
+			fmt.Println("Error creating the task: ", err)
 		} else {
 			fmt.Printf("Task '%s' created successfully!\n", task.Name)
 		}
