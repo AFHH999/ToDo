@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/AFHH999/ToDo/internal/app"
 	"github.com/AFHH999/ToDo/internal/db"
+	"github.com/AFHH999/ToDo/internal/repository"
 	"os"
 	"strconv"
 )
@@ -23,7 +24,9 @@ func main() {
 		return
 	}
 
-	if app.CatchFlags(database) {
+	repo := repository.NewGormRepository(database)
+
+	if app.CatchFlags(repo) {
 		return
 	}
 
@@ -45,13 +48,13 @@ func main() {
 
 		switch menu {
 		case 1:
-			app.CreateTask(reader, database)
+			app.CreateTask(reader, repo)
 		case 2:
-			app.ListTasks(database)
+			app.ListTasks(repo)
 		case 3:
-			app.EditTask(database, reader)
+			app.EditTask(repo, reader)
 		case 4:
-			app.DeleteTask(database, reader)
+			app.DeleteTask(repo, reader)
 		case 5:
 			fmt.Println("Have a great day!")
 			return
