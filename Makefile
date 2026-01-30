@@ -1,6 +1,14 @@
-.PHONY: run build test clean
+.PHONY: run build test clean check lint
 BIN_DIR=bin
 BINARY_NAME=${BIN_DIR}/todo
+
+# "make check will test for compromised dependencies"
+check:
+		govulncheck ./...
+
+# "make lint will perform a static check to find bugs or style issues"
+lint:
+	golangci-lint run
 
 # "make run" will make the program run directly:
 run:
